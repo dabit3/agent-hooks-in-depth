@@ -1,0 +1,90 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && AGENT_HOOKS_PROJECT_DIR=\"$ROOT\" python3 \"$ROOT/hooks/session-context.py\"'",
+            "timeout": 10,
+            "statusMessage": "Loading demo repo context"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && AGENT_HOOKS_PROJECT_DIR=\"$ROOT\" python3 \"$ROOT/hooks/prompt-router.py\"'",
+            "timeout": 10,
+            "statusMessage": "Checking prompt context"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && AGENT_HOOKS_PROJECT_DIR=\"$ROOT\" python3 \"$ROOT/hooks/protect-paths.py\"'",
+            "timeout": 10,
+            "statusMessage": "Checking file policy"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && AGENT_HOOKS_PROJECT_DIR=\"$ROOT\" python3 \"$ROOT/hooks/command-policy.py\"'",
+            "timeout": 10,
+            "statusMessage": "Checking command policy"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && AGENT_HOOKS_PROJECT_DIR=\"$ROOT\" python3 \"$ROOT/hooks/quality-gate.py\"'",
+            "timeout": 60,
+            "statusMessage": "Running quality gate"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && AGENT_HOOKS_PROJECT_DIR=\"$ROOT\" python3 \"$ROOT/hooks/stop-if-quality-failed.py\"'",
+            "timeout": 10,
+            "statusMessage": "Checking completion gate"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && AGENT_HOOKS_PROJECT_DIR=\"$ROOT\" python3 \"$ROOT/hooks/session-end-audit.py\"'",
+            "timeout": 5,
+            "statusMessage": "Writing session audit"
+          }
+        ]
+      }
+    ]
+  }
+}

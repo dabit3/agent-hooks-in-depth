@@ -1,0 +1,91 @@
+{
+  "SessionStart": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/session-context.py\"",
+          "timeout": 10,
+          "statusMessage": "Loading demo repo context"
+        }
+      ]
+    }
+  ],
+  "UserPromptSubmit": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/prompt-router.py\"",
+          "timeout": 10,
+          "statusMessage": "Checking prompt context"
+        }
+      ]
+    }
+  ],
+  "PreToolUse": [
+    {
+      "matcher": "edit|write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/protect-paths.py\"",
+          "timeout": 10,
+          "statusMessage": "Checking file policy"
+        }
+      ]
+    },
+    {
+      "matcher": "exec",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/command-policy.py\"",
+          "timeout": 10,
+          "statusMessage": "Checking command policy"
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "edit|write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/quality-gate.py\"",
+          "timeout": 60,
+          "statusMessage": "Running quality gate"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/stop-if-quality-failed.py\"",
+          "timeout": 10,
+          "statusMessage": "Checking completion gate"
+        }
+      ]
+    }
+  ],
+  "SessionEnd": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/session-end-audit.py\"",
+          "timeout": 5,
+          "statusMessage": "Writing session audit"
+        }
+      ]
+    }
+  ]
+}

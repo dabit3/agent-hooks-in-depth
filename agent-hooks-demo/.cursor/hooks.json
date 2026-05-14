@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "AGENT_HOOKS_PROJECT_DIR=\"$PWD\" python3 hooks/session-context.py",
+        "timeout": 10
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "AGENT_HOOKS_PROJECT_DIR=\"$PWD\" python3 hooks/prompt-router.py",
+        "timeout": 10
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "command": "AGENT_HOOKS_PROJECT_DIR=\"$PWD\" python3 hooks/protect-paths.py",
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "AGENT_HOOKS_PROJECT_DIR=\"$PWD\" python3 hooks/command-policy.py",
+        "timeout": 10
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "AGENT_HOOKS_PROJECT_DIR=\"$PWD\" python3 hooks/quality-gate.py",
+        "timeout": 60
+      }
+    ],
+    "stop": [
+      {
+        "command": "AGENT_HOOKS_PROJECT_DIR=\"$PWD\" python3 hooks/stop-if-quality-failed.py",
+        "timeout": 10,
+        "loop_limit": 3
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "AGENT_HOOKS_PROJECT_DIR=\"$PWD\" python3 hooks/session-end-audit.py",
+        "timeout": 5
+      }
+    ]
+  }
+}
