@@ -1,6 +1,6 @@
 # Agent Hooks: Deterministic Control for Agent Workflows
 
-Hooks make the agent workflow programmable. If you have ever reminded an agent twice to avoid a file, run a test, or follow a release rule, you have already found a use case for hooks.
+Hooks make the agent workflow programmable. If you've ever reminded an agent twice to avoid a file, run a test, or follow a release rule, you have already found a use case for hooks.
 
 Hooks enable this by attaching user-defined handlers to specific lifecycle points in an agent session. A handler receives event data, can be narrowed by an optional matcher or filter, and can return context, make a decision, or perform a side effect.
 
@@ -31,7 +31,7 @@ An **event** is a lifecycle moment, such as `PreToolUse` or `Stop`.
 
 An optional **matcher or filter** narrows when the hook should run, such as only for shell commands or only for file edits. When no matcher is needed, the handler runs for that lifecycle event.
 
-A **handler** is the action the hook takes: depending on the runtime, that might be a shell command, HTTP request, MCP tool call, LLM prompt, or subagent. This demo uses command handlers because shelling out to Python scripts is the most portable option across Devin, Claude Code, Codex, and Cursor.
+A **handler** is the action the hook takes: depending on the runtime, that might be a shell command, HTTP request, MCP tool call, LLM prompt, or subagent. This demo uses command handlers because shelling out to Python scripts is the most portable option across tools.
 
 The **outcome** is the returned context, decision, log entry, or state update.
 
@@ -51,18 +51,13 @@ A useful rule of thumb is simple: when a requirement says “always,” “never
 
 The rest of this post walks through concrete hook examples: what each lifecycle point is useful for, what the hook receives, and how it can return context, block an action, or record state.
 
-This post includes a companion demo in `agent-hooks-demo/`: a small checkout calculator that totals line items, applies discount codes, and adds or waives shipping based on the order amount. Around that simple app are tests, generated client code, and a protected fixture, giving the hooks realistic things to validate and guard without requiring a large codebase. It is deliberately small, but it exercises the full hook flow: adding session context, routing prompts, protecting paths, enforcing command policy, running quality gates, and writing an audit record across Devin, Claude Code, Codex, and Cursor.
+This post includes a companion demo in `agent-hooks-demo/`: a small checkout calculator that totals line items, applies discount codes, and adds or waives shipping based on the order amount. Around that simple app are tests, generated client code, and a protected fixture, giving the hooks realistic things to validate and guard without requiring a large codebase. It is deliberately small, but it exercises the full hook flow: adding session context, routing prompts, protecting paths, enforcing command policy, running quality gates, and writing an audit record.
 
 To try it directly, open `agent-hooks-demo/` in Devin for Terminal, Claude Code, Codex, or Cursor, then use that CLI's hook-inspection command, such as `/hooks` where supported, to confirm the hooks are loaded. Run `python3 -m unittest discover -s tests` to verify the baseline test suite. Then use the walkthrough prompts below to trigger each stage.
 
 Run `bash scripts/reset-demo.sh` before repeating the walkthrough.
 
-The shared policy logic lives in `hooks/`; each runtime config simply maps that tool's events and matchers to those scripts. To reuse this setup in your own repo, copy `hooks/` plus the config directory for your runtime (`.devin/`, `.claude/`, `.codex/`, or `.cursor/`).
-
-- Devin for Terminal uses `.devin/hooks.v1.json`, with Devin matcher names such as `exec`, `edit`, and `write`.
-- Claude Code uses `.claude/settings.json`, with Claude matcher names such as `Bash`, `Edit`, `Write`, and `MultiEdit`.
-- Codex uses `.codex/config.toml` and `.codex/hooks.json`, enables hooks explicitly, and uses matcher names such as `Bash` and `apply_patch`. Project hooks load after the project is trusted.
-- Cursor uses `.cursor/hooks.json`, with event names such as `beforeShellExecution`, `afterFileEdit`, and `beforeSubmitPrompt`.
+The shared policy logic lives in `hooks/`. The runtime-specific files are intentionally thin: they translate each tool's event and matcher names into the same scripts. `agent-hooks-demo/README.md` covers those per-tool details for anyone running the project.
 
 The demo uses hooks to enforce these workflow rules at specific lifecycle points:
 
@@ -84,105 +79,13 @@ You can trigger the full flow with these prompts and actions:
 6. Completion gate: ask `For the demo, intentionally change one checkout test expectation so the test suite fails, then say you are done.` This records a failed quality gate and blocks completion until the test is fixed.
 7. Session end: end or exit the agent session. This writes a final audit record to `reports/session-audit.log`.
 
-For Devin, the recommended project-level hooks file is `.devin/hooks.v1.json`; in that standalone file, the top-level JSON keys are lifecycle events like `SessionStart`, `PreToolUse`, and `Stop`. Claude Code uses `.claude/settings.json`, Codex uses `.codex/config.toml` and `.codex/hooks.json`, and Cursor uses `.cursor/hooks.json`. Other tools may use different event names and matcher names, such as `Edit|Write` instead of `edit|write`, `Bash` instead of `exec`, `apply_patch` for file changes, or Cursor's `beforeShellExecution` and `afterFileEdit`, but the lifecycle pattern is the same. The sections below use the canonical event names as shorthand for those lifecycle points.
+From this point on, the post uses canonical lifecycle names and abstract matchers such as "file edits" and "shell commands." Each runtime spells those details differently, but the shape is the same:
 
-```json
-{
-  "SessionStart": [
-    {
-      "matcher": "",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/session-context.py\"",
-          "timeout": 10,
-          "statusMessage": "Loading demo repo context"
-        }
-      ]
-    }
-  ],
-  "UserPromptSubmit": [
-    {
-      "matcher": "",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/prompt-router.py\"",
-          "timeout": 10,
-          "statusMessage": "Checking prompt context"
-        }
-      ]
-    }
-  ],
-  "PreToolUse": [
-    {
-      "matcher": "edit|write",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/protect-paths.py\"",
-          "timeout": 10,
-          "statusMessage": "Checking file policy"
-        }
-      ]
-    },
-    {
-      "matcher": "exec",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/command-policy.py\"",
-          "timeout": 10,
-          "statusMessage": "Checking command policy"
-        }
-      ]
-    }
-  ],
-  "PostToolUse": [
-    {
-      "matcher": "edit|write",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/quality-gate.py\"",
-          "timeout": 60,
-          "statusMessage": "Running quality gate"
-        }
-      ]
-    }
-  ],
-  "Stop": [
-    {
-      "matcher": "",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/stop-if-quality-failed.py\"",
-          "timeout": 10,
-          "statusMessage": "Checking completion gate"
-        }
-      ]
-    }
-  ],
-  "SessionEnd": [
-    {
-      "matcher": "",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python3 \"$DEVIN_PROJECT_DIR/hooks/session-end-audit.py\"",
-          "timeout": 5,
-          "statusMessage": "Writing session audit"
-        }
-      ]
-    }
-  ]
-}
+```text
+lifecycle event → optional matcher/filter → command handler → outcome
 ```
 
-The runtime configs normalize tool-specific differences before calling the shared scripts.
-
-The demo scripts share a small `hooks/common.py` helper for reading payloads, resolving the project root, and normalizing paths. The hook outputs use Claude Code's documented contract: `hookSpecificOutput.additionalContext` for structured context, and exit code `2` with a stderr reason for simple blocking. Devin for Terminal supports this Claude-compatible hook format. The snippets below inline the core logic for readability.
+The demo scripts share a small `hooks/common.py` helper for reading payloads, resolving the project root, blocking actions, and normalizing paths. The snippets below focus on the hook behavior rather than the adapter details.
 
 ## `SessionStart`: load context once, before work starts
 
@@ -240,43 +143,26 @@ This keeps the base instruction file smaller. The hook adds the extra context wh
 
 ## `PreToolUse`: block actions before they happen
 
-Use `PreToolUse`, or the runtime's equivalent pre-action hook, for prevention. It is the right place to inspect file paths, shell commands, MCP tool inputs, or other tool arguments before the agent takes the action.
+Use `PreToolUse` for prevention. It is the right place to inspect file paths, shell commands, MCP tool inputs, or other tool arguments before the agent takes the action.
 
 A protected-path hook can stop writes to generated artifacts, sensitive fixtures, secrets, or anything outside the repo:
 
 ```python
 #!/usr/bin/env python3
-import json
-import os
 import sys
-from pathlib import Path
 
+from common import block, project_root, read_payload, resolve_inside_root
 
-def block(reason):
-    print(reason, file=sys.stderr)
-    sys.exit(2)
-
-
-payload = json.load(sys.stdin)
-root = Path(
-    os.environ.get("AGENT_HOOKS_PROJECT_DIR")
-    or os.environ.get("DEVIN_PROJECT_DIR")
-    or os.environ.get("CLAUDE_PROJECT_DIR")
-    or payload.get("cwd", ".")
-).resolve()
+payload = read_payload()
+root = project_root(payload)
 tool_input = payload.get("tool_input", {})
 raw_path = tool_input.get("file_path") or tool_input.get("path")
 
 if not raw_path:
     sys.exit(0)
 
-target = Path(raw_path).expanduser()
-if not target.is_absolute():
-    target = root / target
-target = target.resolve()
-
 try:
-    rel = target.relative_to(root).as_posix()
+    target, rel = resolve_inside_root(raw_path, root)
 except ValueError:
     block(f"{raw_path} resolves outside the repo.")
 
@@ -287,7 +173,7 @@ if rel in protected_exact or any(rel.startswith(prefix) for prefix in protected_
     block(f"{rel} is protected. Use application code or tests instead.")
 ```
 
-The actual demo script also extracts paths from patch-style payloads used by runtimes such as Codex.
+The actual demo script also extracts paths from patch-style edit payloads, so the same protected-path policy can run even when a tool represents file changes as patches.
 
 A command-policy hook can stop known dangerous shell commands before they execute:
 
@@ -320,24 +206,19 @@ The useful property is timing: the pre-action hook runs before the tool call, so
 
 ## `PostToolUse`: validate and record what changed
 
-Use `PostToolUse`, or the runtime's equivalent after-action hook, for checks that should run after a tool succeeds. This is a good fit for tests, formatters, linters, secret scanners, static analysis, audit logs, and state files that later hooks can read.
+Use `PostToolUse` for checks that should run after a tool succeeds. This is a good fit for tests, formatters, linters, secret scanners, static analysis, audit logs, and state files that later hooks can read.
 
 ```python
 #!/usr/bin/env python3
 import json
-import os
 import subprocess
 import sys
 import time
-from pathlib import Path
 
-payload = json.load(sys.stdin)
-root = Path(
-    os.environ.get("AGENT_HOOKS_PROJECT_DIR")
-    or os.environ.get("DEVIN_PROJECT_DIR")
-    or os.environ.get("CLAUDE_PROJECT_DIR")
-    or payload.get("cwd", ".")
-).resolve()
+from common import project_root, read_payload
+
+payload = read_payload()
+root = project_root(payload)
 raw_path = payload.get("tool_input", {}).get("file_path") or payload.get("tool_input", {}).get("path") or ""
 
 if raw_path and not raw_path.endswith((".py", ".json")):
@@ -379,22 +260,17 @@ Use the post-action hook to check what happened and feed the result back into th
 
 ## `Stop`: prevent premature completion
 
-Use `Stop`, or the runtime's equivalent completion hook, when the agent should not be allowed to finish the turn until a condition is satisfied. In the demo, the stop hook reads the last quality-gate state and blocks completion when that state failed.
+Use `Stop` when the agent should not be allowed to finish the turn until a condition is satisfied. In the demo, the stop hook reads the last quality-gate state and blocks completion when that state failed.
 
 ```python
 #!/usr/bin/env python3
 import json
-import os
 import sys
-from pathlib import Path
 
-payload = json.load(sys.stdin)
-root = Path(
-    os.environ.get("AGENT_HOOKS_PROJECT_DIR")
-    or os.environ.get("DEVIN_PROJECT_DIR")
-    or os.environ.get("CLAUDE_PROJECT_DIR")
-    or payload.get("cwd", ".")
-).resolve()
+from common import project_root, read_payload
+
+payload = read_payload()
+root = project_root(payload)
 state_file = root / ".hook-state" / "last_quality_gate.json"
 
 if not state_file.exists():
@@ -410,22 +286,17 @@ Be careful with stop hooks that always block, because a stop hook can create a l
 
 ## `SessionEnd`: leave a final record
 
-Use `SessionEnd`, or the runtime's equivalent session-end hook, for cleanup and final evidence. Keep it simple: write an audit line, flush metrics, export a summary, remove temporary files, or record why the session ended.
+Use `SessionEnd` for cleanup and final evidence. Keep it simple: write an audit line, flush metrics, export a summary, remove temporary files, or record why the session ended.
 
 ```python
 #!/usr/bin/env python3
 import json
-import os
 import time
-from pathlib import Path
 
-payload = json.load(sys.stdin)
-root = Path(
-    os.environ.get("AGENT_HOOKS_PROJECT_DIR")
-    or os.environ.get("DEVIN_PROJECT_DIR")
-    or os.environ.get("CLAUDE_PROJECT_DIR")
-    or payload.get("cwd", ".")
-).resolve()
+from common import project_root, read_payload
+
+payload = read_payload()
+root = project_root(payload)
 reports_dir = root / "reports"
 reports_dir.mkdir(exist_ok=True)
 
