@@ -24,7 +24,7 @@ Open this directory with the CLI you want to test, then run that CLI's hook-insp
 
 | Runtime | Config file | Notes |
 |---|---|---|
-| Devin for Terminal | `.devin/hooks.v1.json` | Uses Devin matcher names such as `exec`, `edit`, and `write`. |
+| Devin for Terminal | `.devin/hooks.v1.json` | Uses Devin matcher names such as `exec`, `edit`, `write`, and `apply_patch`. |
 | Claude Code | `.claude/settings.json` | Uses Claude matcher names such as `Bash`, `Edit`, `Write`, and `MultiEdit`. |
 | Codex | `.codex/config.toml` and `.codex/hooks.json` | File edits are exposed as `apply_patch`, with `Edit` and `Write` supported as matcher aliases. Project hooks load after the project is trusted. |
 | Cursor | `.cursor/hooks.json` | Uses Cursor event names such as `beforeShellExecution`, `afterFileEdit`, and `beforeSubmitPrompt`. |
@@ -51,7 +51,7 @@ The hook audit records are written to `reports/`, which is ignored by git.
 
 The blog post uses canonical lifecycle names such as `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, and `SessionEnd`. Each runtime maps those ideas to its own config files, event names, matcher names, and environment variables:
 
-- Devin for Terminal uses `.devin/hooks.v1.json` as a standalone hooks file, so lifecycle events such as `SessionStart` and `PreToolUse` are top-level JSON keys. The demo uses Devin matcher names such as `exec`, `edit`, and `write`, and Devin provides `DEVIN_PROJECT_DIR`.
+- Devin for Terminal uses `.devin/hooks.v1.json` as a standalone hooks file, so lifecycle events such as `SessionStart` and `PreToolUse` are top-level JSON keys. The demo uses Devin matcher names such as `exec`, `edit`, `write`, and `apply_patch`, and Devin provides `DEVIN_PROJECT_DIR`.
 - Claude Code uses `.claude/settings.json` with hooks nested under the `"hooks"` key. The demo uses Claude matcher names such as `Bash`, `Edit`, `Write`, and `MultiEdit`, and Claude Code provides `CLAUDE_PROJECT_DIR`.
 - Codex uses `.codex/config.toml` and `.codex/hooks.json`. The demo sets the canonical feature key, `[features].hooks = true`; hooks are enabled by default in current Codex, but the explicit setting makes the demo self-documenting. File edits are exposed as `apply_patch`, with `Edit` and `Write` supported as matcher aliases. Project hooks load after the project `.codex/` layer is trusted. Codex currently runs `command` handlers; `prompt` and `agent` handlers are parsed but skipped.
 - Cursor uses `.cursor/hooks.json` and event names such as `beforeShellExecution`, `afterFileEdit`, and `beforeSubmitPrompt`.
