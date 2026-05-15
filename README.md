@@ -41,7 +41,9 @@ A **handler** is the action the hook takes: depending on the runtime, that might
 
 The **outcome** is the returned context, decision, log entry, or state update.
 
-A hook does not make the model deterministic. The model can still choose different plans, edits, and recovery paths. The deterministic part is that your code runs at the lifecycle point you selected.
+A hook does not make the entire agent run deterministic. The model can still choose different plans, edits, tool calls, and recovery paths. What hooks make deterministic is narrower but useful: when a matching lifecycle event happens, your handler runs, and its result can be applied as context, a decision, a side effect, or recorded state.
+
+Even that depends on the handler. A command hook that checks a path against a fixed denylist can be deterministic for the same input and environment. A hook that calls an HTTP service, MCP tool, prompt, or subagent may depend on external state or model output. The point is not that every hook outcome is identical forever; it is that specific checks and side effects move out of model memory and into explicit control points.
 
 That separation is useful because open-ended reasoning and deterministic checks belong in different places. Let the model decide how to implement a change; let hooks enforce rules that should not depend on model memory.
 
