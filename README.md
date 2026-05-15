@@ -1,5 +1,7 @@
 # Agent Hooks: Deterministic Control for Agent Workflows
 
+![header](./header.png)
+
 Hooks make the agent workflow programmable. If you've ever reminded an agent twice to avoid a file, run a test, or follow a release rule, you have already found a use case for hooks.
 
 Hooks enable this by attaching user-defined handlers to specific lifecycle points in an agent session. A handler receives event data, can be narrowed by an optional matcher or filter, and can return context, make a decision, or perform a side effect.
@@ -19,6 +21,8 @@ This post uses six lifecycle points that cover the main flow developers usually 
 
 Other hooks exist and are worth learning later, but these are a good starting set because they cover the main flow: start the session, receive the prompt, attempt an action, validate the action, finish the turn, and close the session.
 
+![Session lifecycle](./session_lifecycle.png)
+
 ## The operating model
 
 The simplest mental model is:
@@ -26,6 +30,8 @@ The simplest mental model is:
 ```text
 event → optional matcher/filter → handler → outcome
 ```
+
+![Hook lifecycle](./hook_lifecycle.png)
 
 An **event** is a lifecycle moment, such as `PreToolUse` or `Stop`.
 
@@ -175,6 +181,8 @@ if rel in protected_exact or any(rel.startswith(prefix) for prefix in protected_
 
 The actual demo script also extracts paths from patch-style edit payloads, so the same protected-path policy can run even when a tool represents file changes as patches.
 
+![PreToolUse](./pretooluse.png)
+
 A command-policy hook can stop known dangerous shell commands before they execute:
 
 ```python
@@ -258,6 +266,8 @@ if record["status"] == "failed":
 
 Use the post-action hook to check what happened and feed the result back into the workflow; use the pre-action hook when the action must be blocked before it runs.
 
+![Two hooks](./two_hooks.png)
+
 ## `Stop`: prevent premature completion
 
 Use `Stop` when the agent should not be allowed to finish the turn until a condition is satisfied. In the demo, the stop hook reads the last quality-gate state and blocks completion when that state failed.
@@ -326,6 +336,8 @@ Hooks work best when each layer has a clear job:
 - Hooks: required context, pre-action policy, post-action validation, completion gates, and logs.
 - CI: independent verification after the agent produces a diff.
 - Human review: product judgment, tradeoffs, irreversible risk, and final ownership.
+
+![Defense in Depth](./defenseindepth.png)
 
 Putting everything into hooks creates unnecessary automation. Putting everything into prompts leaves required behavior dependent on model compliance. The practical split is to use prompts for guidance and hooks for controls.
 
