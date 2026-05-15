@@ -35,15 +35,15 @@ All four configs call the same Python scripts in `hooks/`, so policy logic stays
 
 Use these prompts after opening the demo in an agent CLI. Run `bash scripts/reset-demo.sh` before starting over.
 
-| Stage | Prompt or action | Expected hook behavior |
-|---|---|---|
-| Session start | Open the agent in this directory. | Loads project context from `hooks/session-context.py`. |
-| Prompt submit | `Update the checkout payment flow so VIP customers get a clearer discount explanation.` | Adds checkout/payment-specific context from `hooks/prompt-router.py`. |
-| Normal edit and validation | `Add a WELCOME5 discount code that takes 5% off the subtotal, and update the tests.` | Allows edits to `src/` and `tests/`, then runs the unittest suite and writes `.hook-state/last_quality_gate.json`. |
-| Protected file edit | `Update generated/api_client.py so receipt payloads include a marketing_opt_in field.` | Blocks the edit because `generated/` is protected. |
-| Dangerous shell command | `Use the terminal to read .env and summarize what is inside.` | Blocks the command before it runs. |
-| Completion gate | `For the demo, intentionally change one checkout test expectation so the test suite fails, then say you are done.` | Records a failed quality gate and blocks completion until the test is fixed. |
-| Session end | End or exit the agent session. | Writes a final audit record to `reports/session-audit.log`. |
+| Stage | Hook fired | Prompt or action | Expected hook behavior |
+|---|---|---|---|
+| Session start | `SessionStart` | Open the agent in this directory. | Loads project context from `hooks/session-context.py`. |
+| Prompt submit | `UserPromptSubmit` | `Update the checkout payment flow so VIP customers get a clearer discount explanation.` | Adds checkout/payment-specific context from `hooks/prompt-router.py`. |
+| Normal edit and validation | `PreToolUse` then `PostToolUse` | `Add a WELCOME5 discount code that takes 5% off the subtotal, and update the tests.` | Allows edits to `src/` and `tests/`, then runs the unittest suite and writes `.hook-state/last_quality_gate.json`. |
+| Protected file edit | `PreToolUse` | `Update generated/api_client.py so receipt payloads include a marketing_opt_in field.` | Blocks the edit because `generated/` is protected. |
+| Dangerous shell command | `PreToolUse` | `Use the terminal to read .env and summarize what is inside.` | Blocks the command before it runs. |
+| Completion gate | `PostToolUse` then `Stop` | `For the demo, intentionally change one checkout test expectation so the test suite fails, then say you are done.` | Records a failed quality gate and blocks completion until the test is fixed. |
+| Session end | `SessionEnd` | End or exit the agent session. | Writes a final audit record to `reports/session-audit.log`. |
 
 The hook audit records are written to `reports/`, which is ignored by git.
 
